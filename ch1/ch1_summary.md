@@ -1,4 +1,6 @@
-## 1.1 쓸모없는 비교 피기
+# 1 간단한 코드 정리 유형
+
+## 1.1 쓸모없는 비교 피하기
 
 논리 조건문을 배운 초보들은 종종 불 값으로 조건문을 구성한다. 하지만 이런 비교는 정말 쓸모가 없다! 코드 내 잡음과 마찬가지다.
 
@@ -241,7 +243,7 @@ willCrewSurvive() 메서드는 그대로지만, 이제 다른 메서드를 호�
 
 ## 1.5 조건문에서 NullPointerException 피하기
 
-NullPointerException은 <ㅕ>null을 참조하는 메서드를 호출하거나 속성에 접근할 때</U> 발생한다. 이러한 문제를 막으려면 메서드 인수가 유효한지 검사해야 한다.
+NullPointerException은 <U>null을 참조하는 메서드를 호출하거나 속성에 접근할 때</U> 발생한다. 이러한 문제를 막으려면 메서드 인수가 유효한지 검사해야 한다.
 
 ```Java
 class Logbook {    // location 인수로 명시한 파일 시스템 내 특정 파일에 로그 메시지를 기록한다.
@@ -407,9 +409,183 @@ class BoardComputer {
             cruiseControl.grantAccess(user);
             cruiseControl.grantAdminAccess(user); 
             
+    }
+
+}
+
+```
+
+위 코드는 코드 내 들여쓰기가 잘못 읽힐 여지가 있다. <U>if 뒤에 중괄호가 없어 조건이 바로 뒷줄에만 적용된다.</U> cruiseControl.grantAdminAccess(user); 줄이 항상 실행되면서 모든 사용자에게 관리자 권한이 부여될 것이다.
+
+따라서 언제나 괄호를 습관화하자. 아래는 올바른 코드다.
+
+```Java
+class BoardComputer {
+
+    CruiseControl cruiseControl;
+
+    void authorize(User user) {
+
+        Objects.requireNonNull(user);    // 매개변수 값이 null이면 예외를 발생시킨다.
+
+        switch (user.getRank()) {
+
+            case UNKNOWN:
+                cruiseControl.logUnauthorizedAccessAttempt();
+                // switch 문 끝에 break 문을 작성하지 않았기 때문에 버그가 일어난다.(다음 case를 실행하게 된다.)
+            
+            case ASTRONAUT:
+                cruiseControl.grantAccess(user);
+                break;
+
+            case COMMANDER:
+                cruiseControl.grantAccess(user);
+                cruiseControl.grantAdminAccess(user); 
+                break;
+
         }
 
     }
 
 }
 ```
+
+위 코드는 switch 문의 첫 번째 case에서 break 문이 없기 때문에 버그가 일어난다. 첫 번재 case는 실패하고 항상 cruiseControl.grantAccess()를 실행할 것이다.
+
+switch 문은 이런 동작으로 악명이 높다. break 문 또는 블록 끝에 다다라야 실행을 멈추기 때문이다. 
+
+```Java
+class BoardComputer {
+
+    CruiseControl cruiseControl;
+
+    void authorize(User user) {
+
+        Objects.requireNonNull(user);    // 매개변수 값이 null이면 예외를 발생시킨다.
+
+        switch (user.getRank()) {
+
+            case UNKNOWN:
+                cruiseControl.logUnauthorizedAccessAttempt();
+                break;
+            
+            case ASTRONAUT:
+                cruiseControl.grantAccess(user);
+                break;
+
+            case COMMANDER:
+                cruiseControl.grantAccess(user);
+                cruiseControl.grantAdminAccess(user); 
+                break;
+
+        }
+
+    }
+
+}
+```
+
+break 문을 제대로 삽입했다. 이제 코드는 버그가 없지만 이게 완벽한 대안이냐고 하면 그렇지 않다. 예제에서 switch는 원래는 분리해야 할 두 가지 관심사를 섞고 있다. (허가받지 않은 접근과 허가된 접근을 함께 다루고 있다.)
+
+이런 식으로 **서로 다른 관심사는 묶기보다 다른 코드 블록에 넣어야 한다.** 가독성과 버그 양쪽 면에서 분리하는 것이 이득이다.
+
+switch 문은 관심사를 분리하기 어렵기 때문에, 보통 if 문 사용을 권장한다. 
+
+
+## 1.7 항상 괄호 사용하기
+
+이제 볼 예제는 위에서 다룬 예제를 if 문으로 바꾼 코드다.
+
+```Java
+class BoardComputer {
+
+    CruiseControl cruiseControl;
+
+    void authorize(User user) {
+
+        Objects.requireNonNull(user);    // 매개변수 값이 null이면 예외를 발생시킨다.
+
+        if(user.isUNKNOWN()) {
+            cruiseControl.logUnauthorizedAccessAttempt();
+        }
+        
+        if(user.isASTRONAUT()) {
+            cruiseControl.grantAccess(user);
+        }
+
+        if(user.isCOMMANDER()) {
+            cruiseControl.grantAccess(user);
+        }
+
+        cruiseControl.grantAdminAccess(user);    // 보안 위험
+            
+    }
+
+}
+```
+
+이렇게 중괄호를 적용하면 보안 위험이 무엇인지 확실하게 보인다. 게다가 이제 블록 내 새 행을 추가하는 것도 간편해졌다.
+
+
+## 1.8 코드 대칭 이루기
+
+```Java
+class BoardComputer {
+
+    CruiseControl cruiseControl;
+
+    void authorize(User user) {
+
+        Objects.requireNonNull(user);
+
+        if(user.isUnknown()) {
+            cruiseControl.logUnauthorizedAccessAttempt();
+        } else if(user.isAstronaut()) {
+            cruiseControl.grantAccess(user);
+        } else if(user.isCommander()) {
+            cruiseControl.grantAccess(user);
+            cruiseControl.grantAdminAccess(user);
+        }
+    }
+
+}
+```
+
+조건 분기를 대칭적으로 구조화하면 코드가 굉장히 이해하기 쉽게 구성된다. 위 예제는 눈에 띄는 버그는 없지만, <U>조건과 명령문이 연이어 나오고 있다. 이렇게 되면 모든 조건과 명령문을 읽고 이해해야 한다.</U> 예제는 중첩이 별로 없지만 현실에서 굉장히 중첩이 많은 코드가 있다면 이해하기 매우 힘들 것이다.
+
+본질적인 문제는 코드 대칭성(code symmetry)의 부재다. 첫 번째 분기는 접근을 거절하고, 두 번째와 세 번째 분기는 접근을 부여한다. 이는 대칭이 아니다.
+
+아래는 코드를 대칭적으로 바꾼 것이다.
+
+```Java
+class BoardComputer {
+
+    CruiseControl cruiseControl;
+
+    void authorize(User user) {
+
+        Objects.requireNonNull(user);
+
+        if(user.isUnknown()) {
+            cruiseControl.logUnautiorizedAccessAttempt();
+            return;
+        }
+
+        if(user.isAstronaut()) {
+            cruiseControl.grantAccess(user);
+        } else if(user.isCommander()) {
+            cruiseControl.grantAccess(user);
+            cruiseControl.grantAdminAccess(user);
+        }
+    
+    }
+
+}
+```
+
+권한을 부여하는 코드와 부여하지 않는 코드를 서로 다른 코드 블록으로 분리했다. 이렇게 코드 대칭성을 향상시킬 수 있다.
+
+각 코드 블록은 서로 다른 접근 유형을 별개의 if 문으로 묵는다. 먼저 승인되지 않은 접근은 처리하고 로깅한 뒤 메서드를 종료한다. 이어서 나머지 두 경우를 한 블록에서 처리한다. 승인된 접근 유형 두 가지만 들어 있으니 대칭을 이루며 이해하기 쉽게 되었다.
+
+
+---
