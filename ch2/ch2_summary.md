@@ -231,7 +231,7 @@ class Inventory {
 
     void disposeContaminatedSupplies() {
         
-        iterator<Supply> iterator = supplies.iterator();
+        Iterator<Supply> iterator = supplies.iterator();
 
         while (iterator.hasNext()) {
 
